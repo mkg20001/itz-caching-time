@@ -11,6 +11,12 @@ async function clock (storage, triggerEvent) {
   let nextHitTime
   let nextHitWanted
 
+  const strEv = (when, what) => JSON.stringify([when, what])
+  const unstrEv = (ev) => {
+    let [when, what] = JSON.parse(ev)
+    return {when, what}
+  }
+
   async function doHit () {
     hitLock = true
 
@@ -60,8 +66,12 @@ async function clock (storage, triggerEvent) {
   async function loadEvents () {
     events = await storage.get('events')
     await Promise.all(events.map(async id => {
-      eventsMap[id] = await storage.get(id)
+      eventsMap[id] = unstrEv(await storage.get(id))
     }))
+
+    if (events[0]) {
+      adjustHit(eventsMap[events[0]].when)
+    }
   }
 
   await loadEvents()
@@ -74,13 +84,14 @@ async function clock (storage, triggerEvent) {
         id = crypto.randomBytes(2).toString('hex')
       }
 
-      eventsMap[id] = what
+      eventsMap[id] = {when, what}
       events.push(id)
       events = events.sort((a, b) =>
         eventsMap[a].when - eventsMap[b].when)
 
-      await storage.set(id, {when, what})
+      await storage.set(id, strEv(when, what))
       await saveEvents()
+      adjustHit(when)
     },
     removeEvent: async (id) => {
       delete eventsMap[id]

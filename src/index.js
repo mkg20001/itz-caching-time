@@ -7,14 +7,15 @@ function memoryStorage () {
 
   return {
     get: (key) => storage[key],
-    set: (key, val) => (storage[key] = val)
+    set: (key, val) => (storage[key] = val),
+    del: (key) => (delete storage[key])
   }
 }
 
 module.exports = async ({storage, storeAsString} = {}) => {
   if (!storage) { storage = memoryStorage() }
 
-  const clock = Clock({
+  const clock = await Clock({
     set: async (key, val) => storage.set('e#' + key, storeAsString ? JSON.stringify(val) : val),
     get: async (key, val) => storeAsString ? JSON.parse(await storage.get('e#' + key)) : storage.get('e#' + key),
     del: async (key) => storage.del('e#' + key)
@@ -49,4 +50,6 @@ module.exports = async ({storage, storeAsString} = {}) => {
       return storage.del(key)
     }
   }
+
+  return main
 }
