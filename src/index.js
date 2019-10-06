@@ -53,7 +53,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
     },
     proxy: (fnc, {name, ttl, bgRefetch}) => {
       return async (...a) => {
-        const key = fnc + 'Ω' + JSON.stringify(a)
+        const key = name + 'Ω' + JSON.stringify(a)
 
         let res = await main.get(name, true)
 
