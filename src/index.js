@@ -1,6 +1,7 @@
 'use strict'
 
 const Clock = require('./clock')
+const Lock = require('./lock')
 
 function memoryStorage () {
   const storage = {}
@@ -20,14 +21,15 @@ module.exports = async ({storage, storeAsString} = {}) => {
     get: async (key, val) => storeAsString ? JSON.parse(await storage.get('e#' + key)) : storage.get('e#' + key),
     del: async (key) => storage.del('e#' + key)
   }, id => storage.del(id))
+  const lock = Lock()
 
   const main = {
     set: async (key, value, ttl) => {
       let newVal = {
         v: value,
-        l: Date.now() + ttl
+        l: ttl ? Date.now() + ttl : 0
       }
-      clock.addEvent(newVal.l, key)
+      if (newVal.l) { clock.addEvent(newVal.l, key) }
       if (storeAsString) { newVal = JSON.stringify(newVal) }
 
       return storage.set(key, newVal)
@@ -39,7 +41,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
 
       if (storeAsString) { res = JSON.parse(res) }
 
-      if (res.l >= Date.now()) {
+      if (res.l && res.l >= Date.now()) {
         await storage.del(key)
         return null
       } else {
@@ -48,6 +50,44 @@ module.exports = async ({storage, storeAsString} = {}) => {
     },
     del: async (key) => {
       return storage.del(key)
+    },
+    proxy: (fnc, {name, ttl, bgRefetch}) => {
+      return async (...a) => {
+        const key = fnc + 'Ω' + JSON.stringify(a)
+
+        let res = await main.get(name, true)
+
+        if (bgRefetch) {
+          if (!res) {
+            res = {
+              expiry: ttl + Date.now(),
+              res: await fnc()
+            }
+          } else {
+            if (res.expiry >= Date.now()) {
+              await lock.runOnce(key, async () => {
+                let res = {
+                  expiry: ttl + Date.now(),
+                  res: await fnc()
+                }
+
+                await main.set(key, res, 0)
+              })
+            }
+
+            return res.res
+          }
+        } else {
+          if (!res) {
+            await lock.runOnce(key, async () => {
+              let res = await fnc()
+              await main.set(key, res, 0)
+            })
+          }
+
+          return main.get(key)
+        }
+      }
     }
   }
 
