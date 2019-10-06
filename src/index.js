@@ -18,7 +18,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
 
   const clock = await Clock({
     set: async (key, val) => storage.set('e#' + key, storeAsString ? JSON.stringify(val) : val),
-    get: async (key, val) => storeAsString ? JSON.parse(await storage.get('e#' + key)) : storage.get('e#' + key),
+    get: async (key, val) => storeAsString ? JSON.parse((await storage.get('e#' + key)) || 'null') : storage.get('e#' + key),
     del: async (key) => storage.del('e#' + key)
   }, id => storage.del(id))
   const lock = Lock()
