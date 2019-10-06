@@ -22,6 +22,13 @@ const cache = caching({})
 // create a new cached entry
 await cache.set('theAnswer', 'Is 42', 300) // caches 'theAnswer' for 300ms
 
-// create a new cached function 'calc' which will cache for 3000s by default
-const cachedFunction = cache.proxy((a, b) => (a + b), 'calc', 3000)
+// create a new cached function 'calc' which will cache for 3s
+const cachedFunction = cache.proxy((a, b) => (a + b), {name: 'calc', ttl: 3000})
+
+// create a new cached function 'fetch' which will cache for 3s and re-fetch in the background
+const fetchFnc = cache.proxy((url) => fetchURL(url), {name: 'fetch', ttl: 3000, bgRefetch: true})
+const content = await fetchFnc()
+setTimeout(async () => {
+  const oldContent = await fetchFnc() // this will re-fetch in the background. this is useful for values that don't change to often, like avatars, etc
+}, 4000)
 ```
