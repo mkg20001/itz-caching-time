@@ -41,7 +41,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
 
       if (storeAsString) { res = JSON.parse(res) }
 
-      if (res.l && res.l >= Date.now()) {
+      if (res.l && res.l <= Date.now()) {
         await storage.del(key)
         return null
       } else {
@@ -59,16 +59,22 @@ module.exports = async ({storage, storeAsString} = {}) => {
 
         if (bgRefetch) {
           if (!res) {
-            res = {
-              expiry: ttl + Date.now(),
-              res: await fnc()
-            }
+            return lock.runOnce(key, async () => {
+              let res = {
+                expiry: ttl + Date.now(),
+                res: await fnc(...a)
+              }
+
+              await main.set(key, res, 0)
+
+              return res.res
+            }, true)
           } else {
             if (res.expiry >= Date.now()) {
-              await lock.runOnce(key, async () => {
+              lock.runOnce(key, async () => {
                 let res = {
                   expiry: ttl + Date.now(),
-                  res: await fnc()
+                  res: await fnc(...a)
                 }
 
                 await main.set(key, res, 0)
@@ -79,10 +85,12 @@ module.exports = async ({storage, storeAsString} = {}) => {
           }
         } else {
           if (!res) {
-            await lock.runOnce(key, async () => {
-              let res = await fnc()
+            return lock.runOnce(key, async () => {
+              let res = await fnc(...a)
               await main.set(key, res, 0)
-            })
+
+              return res
+            }, true)
           }
 
           return main.get(key)

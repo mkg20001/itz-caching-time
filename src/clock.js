@@ -64,10 +64,14 @@ async function clock (storage, triggerEvent) {
   }
 
   async function loadEvents () {
-    events = await storage.get('events')
-    await Promise.all(events.map(async id => {
-      eventsMap[id] = unstrEv(await storage.get(id))
-    }))
+    let _events = await storage.get('events')
+
+    if (_events) {
+      await Promise.all(events.split(',').map(async (id) => {
+        eventsMap[id] = unstrEv(await storage.get(id))
+      }))
+      events = _events
+    }
 
     if (events[0]) {
       adjustHit(eventsMap[events[0]].when)
