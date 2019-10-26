@@ -1,7 +1,7 @@
 'use strict'
 
 const Clock = require('./clock')
-const Lock = require('./lock')
+const Lock = require('itz-locking-time')
 
 function memoryStorage () {
   const storage = {}
@@ -13,7 +13,7 @@ function memoryStorage () {
   }
 }
 
-module.exports = async ({storage, storeAsString} = {}) => {
+module.exports = async ({ storage, storeAsString } = {}) => {
   if (!storage) { storage = memoryStorage() }
 
   const clock = await Clock({
@@ -51,16 +51,16 @@ module.exports = async ({storage, storeAsString} = {}) => {
     del: async (key) => {
       return storage.del(key)
     },
-    proxy: (fnc, {name, ttl, bgRefetch}) => {
+    proxy: (fnc, { name, ttl, bgRefetch }) => {
       return async (...a) => {
         const key = name + 'Ω' + JSON.stringify(a)
 
-        let res = await main.get(name, true)
+        const res = await main.get(name, true)
 
         if (bgRefetch) {
           if (!res) {
             return lock.runOnce(key, async () => {
-              let res = {
+              const res = {
                 expiry: ttl + Date.now(),
                 res: await fnc(...a)
               }
@@ -72,7 +72,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
           } else {
             if (res.expiry >= Date.now()) {
               lock.runOnce(key, async () => {
-                let res = {
+                const res = {
                   expiry: ttl + Date.now(),
                   res: await fnc(...a)
                 }
@@ -86,7 +86,7 @@ module.exports = async ({storage, storeAsString} = {}) => {
         } else {
           if (!res) {
             return lock.runOnce(key, async () => {
-              let res = await fnc(...a)
+              const res = await fnc(...a)
               await main.set(key, res, 0)
 
               return res
